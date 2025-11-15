@@ -114,12 +114,12 @@ domain-specific-ir-system/
 ├── data/
 │   └── Understanding_Climate_Change.pdf  # Your source document(s)
 │
-├── faiss_index/                # Stores the FAISS vector index (created by 2_ingest.py)
+├── faiss_index/                # Stores the FAISS vector index (created by ingest.py)
 │   ├── index.faiss
 │   └── index.pkl
 │
-├── bm25_index/                 # Stores the BM25 data (created by 2_ingest.py)
+├── bm25_index/                 # Stores the BM25 data (created by ingest.py)
 │   └── cleaned_texts.pkl
 │
-└── query_log.db                # SQLite DB for search history (created by 3_backend_api.py)
+└── query_log.db                # SQLite DB for search history (created by backend_api.py)
 ```
