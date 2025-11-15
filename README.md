@@ -67,7 +67,7 @@ Follow these steps to run the project locally.
     Install all required packages from the `requirements.txt` file.
 
     ```bash
-    pip install -r 1_requirements.txt
+    pip install -r requirements.txt
     ```
 
 ### 3\. Running the System
