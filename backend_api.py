@@ -102,7 +102,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# --- CHANGED: 'alpha' removed from SearchQuery ---
 class SearchQuery(BaseModel):
     query: str
     top_n: int = 5
@@ -154,7 +153,6 @@ async def search(request: SearchQuery):
     transformed_query = transform_query(request.query)
     
     # 2. Stage 1: Hybrid Retrieval (FAISS + BM25)
-    # --- CHANGED: All 'alpha' logic has been removed ---
     # The ensemble retriever will use its default 50/50 weights
     retrieved_docs = models['ensemble_retriever'].get_relevant_documents(transformed_query)
     

@@ -111,7 +111,6 @@ with col2:
         
         with st.spinner("Searching, retrieving, and re-ranking..."):
             try:
-                # --- CHANGED: 'alpha' removed from payload ---
                 payload = {"query": user_query}
                 response = requests.post(API_SEARCH_URL, json=payload, timeout=60)
                 

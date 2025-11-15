@@ -4,10 +4,9 @@
 
   * **Hybrid Retrieval:** Implements an `EnsembleRetriever` that combines **BM25 (keyword search)** and **FAISS (vector search)** to find the most relevant document chunks.
   * **Two-Stage Ranking:** Uses a fast hybrid retrieval (Stage 1) followed by a high-accuracy **Cross-Encoder Re-ranker** (Stage 2) to provide the most precise answers and meaningful relevance scores.
-  * **Query Intelligence:** Employs a `google/flan-t5-base` model to automatically transform user queries into more effective search terms, enhancing retrieval accuracy.
+  * **Query Intelligence:** Employs a `google/flan-t5-large` model to automatically transform user queries into more effective search terms, enhancing retrieval accuracy.
   * **Modular API Architecture:** The system is decoupled into a **FastAPI backend** (for all AI logic) and a **Streamlit frontend** (for the UI), which is a scalable and professional design.
   * **Interactive UI:** The Streamlit app features a two-column layout, a system status sidebar, and clickable search history buttons.
-  * **Controllable Retrieval:** Includes an interactive **slider** that allows the user to adjust the balance (`alpha`) between keyword and vector search in real-time.
   * **Search History:** Logs all successful queries to an SQLite database (`query_log.db`) and displays them as clickable suggestions.
 
 ##  System Architecture
@@ -26,7 +25,7 @@ The data flow is a multi-stage process designed for maximum accuracy.
       * The UI validates the query (must be \> 15 characters).
       * The query and `alpha` setting are sent to the **FastAPI** `/search` endpoint.
       * **(Step 1: Transform)** The T5 model rewrites the query for better search.
-      * **(Step 2: Retrieve)** The `EnsembleRetriever` (BM25 + FAISS) uses the `alpha` weight to fetch the top-K hybrid candidates.
+      * **(Step 2: Retrieve)** The `EnsembleRetriever` (BM25 + FAISS) uses weight to fetch the top-K hybrid candidates.
       * **(Step 3: Re-rank)** The `CrossEncoder` re-scores all candidates against the *original* user query to find the true best answer.
       * **(Step 4: Log)** The original query is logged to `query_log.db`.
       * **(Step 5: Respond)** The backend returns the Top-N sorted, re-ranked results to the Streamlit UI, which displays them in the results pane.
