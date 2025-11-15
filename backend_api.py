@@ -22,7 +22,7 @@ warnings.filterwarnings('ignore', category=UserWarning)
 FAISS_INDEX_PATH = "faiss_index"
 BM25_INDEX_PATH = "bm25_index"
 RERANKER_MODEL = 'cross-encoder/ms-marco-MiniLM-L-6-v2'
-QUERY_TRANSFORM_MODEL = 'google/flan-t5-base'
+QUERY_TRANSFORM_MODEL = 'google/flan-t5-large'
 DEVICE = 'cpu'
 LOG_DB_PATH = "query_log.db"
 # ---------------------
@@ -59,14 +59,13 @@ async def lifespan(app: FastAPI):
     print("FAISS retriever loaded.")
 
     # Load BM25 Index
+    print("Loading cleaned texts for BM25...")
     with open(os.path.join(BM25_INDEX_PATH, "cleaned_texts.pkl"), 'rb') as f:
         cleaned_texts = pickle.load(f)
-    # with open(os.path.join(BM25_INDEX_PATH, "bm25_model.pkl"), 'rb') as f:
-    #     bm25_model = pickle.load(f)
     
+    print("Creating BM25 retriever from texts...")
     models['bm25_retriever'] = BM25Retriever.from_documents(
-        # bm25_model=bm25_model,
-        documents=cleaned_texts
+        cleaned_texts
     )
     models['bm25_retriever'].k = 10
     print("BM25 retriever loaded.")
@@ -74,7 +73,7 @@ async def lifespan(app: FastAPI):
     # Create Ensemble Retriever
     models['ensemble_retriever'] = EnsembleRetriever(
         retrievers=[models['bm25_retriever'], models['faiss_retriever']],
-        weights=[0.5, 0.5]  # Default weights, can be changed per query
+        weights=[0.5, 0.5]  # <-- This is now the permanent 50/50 weight
     )
     print("Ensemble retriever created.")
 
@@ -83,6 +82,7 @@ async def lifespan(app: FastAPI):
     print("CrossEncoder re-ranker loaded.")
 
     # Load Query Transformer
+    print(f"Loading query transform model: {QUERY_TRANSFORM_MODEL}...")
     models['query_tokenizer'] = T5Tokenizer.from_pretrained(QUERY_TRANSFORM_MODEL)
     models['query_transformer'] = T5ForConditionalGeneration.from_pretrained(QUERY_TRANSFORM_MODEL)
     print("Query transformer loaded.")
@@ -102,10 +102,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# --- CHANGED: 'alpha' removed from SearchQuery ---
 class SearchQuery(BaseModel):
     query: str
     top_n: int = 5
-    alpha: float = 0.5 # Weight for BM25 vs FAISS
+    # alpha: float = 0.5  <-- This line is GONE
 
 class SearchResult(BaseModel):
     text: str
@@ -117,11 +118,7 @@ class SearchResponse(BaseModel):
     transformed_query: str
     results: list[SearchResult]
 
-# --- 2. PROMPT UPGRADE ---
 def transform_query(user_query: str) -> str:
-    """Uses a T5 model to rewrite the user's query into a better search query."""
-    
-    # New, more explicit prompt
     prompt = (
         "You are an expert search query rewriter. "
         "Convert the following user question into a concise and effective keyword-based search query "
@@ -134,7 +131,6 @@ def transform_query(user_query: str) -> str:
     outputs = models['query_transformer'].generate(**inputs, max_length=100)
     transformed_query = models['query_tokenizer'].decode(outputs[0], skip_special_tokens=True)
     
-    # Clean up output if model adds extra text
     if transformed_query.startswith("SEARCH QUERY:"):
         transformed_query = transformed_query[len("SEARCH QUERY:"):].strip()
         
@@ -158,15 +154,8 @@ async def search(request: SearchQuery):
     transformed_query = transform_query(request.query)
     
     # 2. Stage 1: Hybrid Retrieval (FAISS + BM25)
-    # Set the weights for the ensemble based on user's 'alpha'
-    # Alpha = 0.5 -> 50% BM25, 50% FAISS
-    # Alpha = 1.0 -> 100% BM25, 0% FAISS (pure keyword)
-    # Alpha = 0.0 -> 0% BM25, 100% FAISS (pure vector)
-    bm25_weight = request.alpha
-    faiss_weight = 1.0 - request.alpha
-    models['ensemble_retriever'].weights = [bm25_weight, faiss_weight]
-    
-    # Get hybrid results (these are not ranked yet)
+    # --- CHANGED: All 'alpha' logic has been removed ---
+    # The ensemble retriever will use its default 50/50 weights
     retrieved_docs = models['ensemble_retriever'].get_relevant_documents(transformed_query)
     
     if not retrieved_docs:

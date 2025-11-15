@@ -1,6 +1,3 @@
-
-
-
 import streamlit as st
 import requests
 import os
@@ -17,7 +14,7 @@ API_SUGGEST_URL = f"{API_BASE_URL}/suggest"
 def check_vector_db():
     # Check for both index types
     faiss_ready = os.path.exists("faiss_index/index.faiss")
-    bm25_ready = os.path.exists("bm25_index/bm25_model.pkl")
+    bm25_ready = os.path.exists("bm25_index/cleaned_texts.pkl")
     return faiss_ready and bm25_ready
 
 @st.cache_data(ttl=30)
@@ -40,13 +37,13 @@ def get_suggestions_from_db():
 
 # --- Sidebar ---
 with st.sidebar:
-    st.header("🚀 About This System")
+    st.header(" About This System")
     st.markdown(
         "This IR system uses a hybrid retrieval pipeline:"
     )
     st.markdown(
         "1.  **Query Transformation:** Your query is rewritten by a T5 model.\n"
-        "2.  **Hybrid Retrieval:** A `EnsembleRetriever` fuses results from:\n"
+        "2.  **Hybrid Retrieval:** A `EnsembleRetriever` fuses results (50/50) from:\n" # Added (50/50)
         "    - **BM25** (Keyword Search)\n"
         "    - **FAISS** (Vector Search)\n"
         "3.  **Re-ranking:** A `CrossEncoder` re-ranks the hybrid results for final accuracy."
@@ -58,14 +55,14 @@ with st.sidebar:
     api_ready = check_backend_api()
     
     if db_ready:
-        st.success("🟢 FAISS & BM25 Indexes are ready.")
+        st.success(" FAISS & BM25 Indexes are ready.")
     else:
-        st.error("🔴 Indexes not found! Please run: `python 2_ingest.py`")
+        st.error(" Indexes not found! Please run: `python 2_ingest.py`")
 
     if api_ready:
-        st.success("🟢 Backend API is running.")
+        st.success(" Backend API is running.")
     else:
-        st.error("🔴 Backend API not running! Please run: `uvicorn 3_backend_api:app --reload`")
+        st.error(" Backend API not running! Please run: `uvicorn 3_backend_api:app --reload`")
     
     st.divider()
     st.caption("Built with Streamlit, FastAPI, & LangChain.")
@@ -96,25 +93,9 @@ with col1:
         )
     
     st.divider()
-
-    # --- NEW: Alpha Slider for Hybrid Search ---
-    st.subheader("Retrieval Method:")
-    alpha = st.slider(
-        "Adjust balance: (Keyword longleftrightarrow Vector)",
-        min_value=0.0,
-        max_value=1.0,
-        value=0.5, # Default to 50/50 split
-        step=0.1,
-        help=(
-            "**0.0 = Pure Vector Search (FAISS):** Good for conceptual matches.\n\n"
-            "**0.5 = Hybrid Search (BM25 + FAISS):** Best all-around.\n\n"
-            "**1.0 = Pure Keyword Search (BM25):** Good for specific terms/acronyms."
-        )
-    )
-    
     # --- Search Interface ---
     user_query = st.text_input(
-        "Or, ask a new question:",
+        "Ask a new question:", # <-- Changed label to be more direct
         key="input_query",
         placeholder="e.g., What are the causes of climate change?"
     )
@@ -124,14 +105,14 @@ with col2:
     st.subheader("Top 5 Results:")
     
     if user_query:
-        if len(user_query.strip()) < 5:
+        if len(user_query.strip()) < 15:
             st.warning("Please enter a more specific query (at least 15 characters).")
             st.stop()
         
         with st.spinner("Searching, retrieving, and re-ranking..."):
             try:
-                # Pass the new 'alpha' value to the backend
-                payload = {"query": user_query, "alpha": alpha}
+                # --- CHANGED: 'alpha' removed from payload ---
+                payload = {"query": user_query}
                 response = requests.post(API_SEARCH_URL, json=payload, timeout=60)
                 
                 if response.status_code == 200:
@@ -147,7 +128,6 @@ with col2:
                                 with col_res_1:
                                     st.markdown(f"**Source:** `{result['source']}`")
                                 with col_res_2:
-                                    # The score now comes from the CrossEncoder re-ranker
                                     st.markdown(f"**Score:** `{result['relevance_score']:.4f}`")
 
                                 with st.expander("Show Retrieved Text", expanded=i < 2):
